@@ -1,3 +1,12 @@
+---
+title: ClearPerks Backend
+emoji: 🚀
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+---
+
 # clearperks-backend
 
 Quick run and frontend guidance for local development.
