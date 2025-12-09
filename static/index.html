@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>ClearPerks API Test</title>
+</head>
+<body>
+  <h1>ClearPerks API Test Page</h1>
+  <div id="status">Checking API...</div>
+  <script>
+    async function checkApi() {
+      const statusEl = document.getElementById('status');
+      try {
+        const resp = await fetch('/api/v1/openapi.json');
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const json = await resp.json();
+        statusEl.textContent = 'OpenAPI fetched OK. title: ' + (json.info?.title || 'unknown');
+      } catch (err) {
+        statusEl.textContent = 'Fetch failed: ' + err.message;
+        console.error('Fetch error:', err);
+      }
+    }
+    checkApi();
+  </script>
+</body>
+</html>
