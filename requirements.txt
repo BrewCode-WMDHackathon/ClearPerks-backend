@@ -8,3 +8,8 @@ python-dotenv
 passlib[bcrypt]
 python-jose
 supabase
+paddlepaddle
+paddleocr
+opencv-python-headless
+pymupdf
+openai
