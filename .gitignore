@@ -2,3 +2,6 @@
 **__pycache__/
 .env
 /uploads
+KESTRA_QUICKSTART.md
+FRONTEND_INTEGRATION.md
+KESTRA_INTEGRATION.md

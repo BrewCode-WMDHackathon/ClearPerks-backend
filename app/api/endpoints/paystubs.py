@@ -85,3 +85,34 @@ def delete_paystub(
     db.delete(paystub)
     db.commit()
     return None
+
+@router.post("/{paystub_id}/reprocess", response_model=PaystubOut)
+def reprocess_paystub(
+    paystub_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    current_user: UserContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Reprocess a failed or stuck paystub.
+    Used by Kestra for batch cleanup jobs.
+    """
+    paystub = (
+        db.query(Paystub)
+        .filter(Paystub.id == paystub_id, Paystub.user_id == current_user.user_id)
+        .first()
+    )
+    if not paystub:
+        raise HTTPException(404, "Paystub not found")
+    
+    # Reset status and trigger reprocessing
+    paystub.status = "processing"
+    paystub.error_message = None
+    db.commit()
+    db.refresh(paystub)
+    
+    # Kick off OCR in background
+    background_tasks.add_task(run_ocr_and_parse, paystub.id, paystub.file_url, SessionLocal())
+    
+    return paystub
+
