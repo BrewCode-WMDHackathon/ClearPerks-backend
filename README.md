@@ -1,3 +1,13 @@
+---
+title: ClearPerks Backend
+emoji: 💼
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # ClearPerks Backend
 
 The backend service for the ClearPerks ecosystem. This API powers the "AI Benefits Optimizer" and "Trends Engine", providing intelligent analysis of paystubs and optimization of benefits packages.
