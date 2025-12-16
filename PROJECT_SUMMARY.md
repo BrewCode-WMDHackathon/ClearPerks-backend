@@ -95,17 +95,17 @@
 
 ### **Backend (.env & Hugging Face Secrets)**
 ```env
-DATABASE_URL=postgresql://postgres.iineirmxjuevguwhcxjv:EasyCode%232025@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres
+DATABASE_URL=__YOUT__LINK
 INTERNAL_KESRA_API_KEY=changeme
 UPLOAD_DIR=/tmp/uploads
 OPENAI_API_KEY=your_key
-OPENAI_BASE_URL=https://api.ai.it.ufl.edu
+OPENAI_BASE_URL=your_url
 ```
 
 ### **Kestra (docker-compose.kestra.yml)**
 ```yaml
-SECRET_CLEARPERKS_API_URL: aHR0cHM6Ly9pYW1wcmF0aGFtMjktY2xlYXItcGVya3MtYmFja2VuZC5oZi5zcGFjZQ==
-SECRET_INTERNAL_KESTRA_API_KEY: Y2hhbmdlbWU=
+SECRET_CLEARPERKS_API_URL: your_api
+SECRET_INTERNAL_KESTRA_API_KEY: your_key
 ```
 
 ---
