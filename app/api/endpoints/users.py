@@ -68,7 +68,10 @@ def list_notifications(
 ):
     notifications = (
         db.query(Notification)
-        .filter(Notification.user_id == current_user.user_id)
+        .filter(
+            Notification.user_id == current_user.user_id,
+            Notification.is_cleared == 0
+        )
         .order_by(Notification.created_at.desc())
         .all()
     )

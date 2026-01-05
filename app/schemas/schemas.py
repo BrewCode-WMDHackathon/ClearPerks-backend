@@ -32,6 +32,10 @@ class NotificationPreferencesOut(BaseSchema):
     k401_alerts: bool
     deductible_alerts: bool
     trend_alerts: bool
+    news_frequency: str
+    social_updates: str
+    gov_notifications: bool
+    all_disabled: bool
 
 
 class NotificationPreferencesUpdate(BaseSchema):
@@ -41,6 +45,10 @@ class NotificationPreferencesUpdate(BaseSchema):
     k401_alerts: Optional[bool] = None
     deductible_alerts: Optional[bool] = None
     trend_alerts: Optional[bool] = None
+    news_frequency: Optional[str] = None
+    social_updates: Optional[str] = None
+    gov_notifications: Optional[bool] = None
+    all_disabled: Optional[bool] = None
 
 
 class PaystubOut(BaseSchema):
@@ -51,7 +59,7 @@ class PaystubOut(BaseSchema):
     parsed_data: Optional[dict]
     status: str
     error_message: Optional[str]
-    
+
 class BenefitSummaryOut(BaseSchema):
     id: uuid.UUID
     paystub_id: uuid.UUID
@@ -93,10 +101,22 @@ class NotificationOut(BaseSchema):
     title: str
     body: str
     type: Optional[str]
+    category: Optional[str]
+    priority: str
+    is_cleared: int
     scheduled_for: Optional[datetime]
     sent_at: Optional[datetime]
     read_at: Optional[datetime]
     created_at: datetime
+
+
+class NotificationCreate(BaseSchema):
+    user_id: Optional[uuid.UUID] = None  # if None, send to all (or filtered)
+    title: str
+    body: str
+    category: str = "manual"
+    priority: str = "medium"
+    scheduled_for: Optional[datetime] = None
 
 
 class TrendItemIn(BaseSchema):

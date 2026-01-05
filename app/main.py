@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core.database import engine, Base
-from app.api.endpoints import users, paystubs, benefits, trends, kestra_hooks
+from app.api.endpoints import users, paystubs, benefits, trends, kestra_hooks, notifications_admin
 
 # Create tables (for local dev; skip if using Supabase migrations)
 Base.metadata.create_all(bind=engine)
@@ -46,6 +46,7 @@ app.include_router(paystubs.router, prefix=f"{API_PREFIX}/paystubs", tags=["Pays
 app.include_router(benefits.router, prefix=f"{API_PREFIX}/benefits", tags=["Benefits"])
 app.include_router(trends.router, prefix=f"{API_PREFIX}", tags=["Trends"])
 app.include_router(kestra_hooks.router, prefix=f"{API_PREFIX}/kestra", tags=["Kestra Workflows"])
+app.include_router(notifications_admin.router, prefix=f"{API_PREFIX}", tags=["Admin Notifications"])
 
 @app.get("/", include_in_schema=False)
 def root():

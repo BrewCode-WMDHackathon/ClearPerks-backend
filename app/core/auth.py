@@ -4,7 +4,10 @@ from fastapi import Header, HTTPException, status, Depends
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.models import Profile, NotificationPreference
-from app.schemas.schemas import UserContext
+class UserContext(BaseSchema):
+    user_id: uuid.UUID
+    email: Optional[str] = None
+    is_admin: bool = False
 
 def get_current_user(
     x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
@@ -14,10 +17,7 @@ def get_current_user(
     """
     Hackathon-friendly auth:
     - Accepts X-User-Id header as UUID string.
-    - Optionally X-User-Email.
-    - Ensures a Profile exists for this user.
-
-    Replace this with proper Supabase JWT verification in production.
+    - Ensures a Profile exists.
     """
     if not x_user_id:
         raise HTTPException(
@@ -39,4 +39,18 @@ def get_current_user(
         db.commit()
         db.refresh(profile)
 
-    return UserContext(user_id=profile.user_id, email=profile.email)
+    return UserContext(
+        user_id=profile.user_id, 
+        email=profile.email,
+        is_admin=profile.is_admin
+    )
+
+def get_current_admin(
+    current_user: UserContext = Depends(get_current_user),
+) -> UserContext:
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required."
+        )
+    return current_user

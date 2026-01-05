@@ -54,6 +54,8 @@ def ingest_trends_from_kestra(
     db.commit()
     return {"created_trend_ids": created_ids}
 
+from app.services.notification_service import NotificationService
+
 @router.post(
     "/internal/kestra/trends/notify",
     dependencies=[Depends(verify_internal_api_key)],
@@ -63,10 +65,7 @@ def trigger_trend_notifications(
     db: Session = Depends(get_db),
 ):
     """
-    Simple strategy:
-    - Find trends with relevance_score >= 8 (or the provided IDs).
-    - For each user with trend_alerts=true, create a Notification row.
-    - FCM push sending can be handled by a separate worker reading from notifications table.
+    Refactored to use NotificationService.
     """
     query = db.query(BenefitTrend)
     if payload.trend_ids:
@@ -79,29 +78,24 @@ def trigger_trend_notifications(
     if not trends:
         return {"message": "No trends to notify"}
 
-    users = (
-        db.query(Profile)
-        .join(NotificationPreference, NotificationPreference.user_id == Profile.user_id)
-        .filter(NotificationPreference.trend_alerts == True)  # noqa
-        .all()
-    )
+    users = db.query(Profile).all()
 
     created = 0
     for user in users:
         for trend in trends:
-            notif = Notification(
-                user_id=user.user_id,
+            res = NotificationService.create_notification(
+                db, 
+                user.user_id, 
                 title=f"Benefits Trend: {trend.title}",
                 body=trend.summary[:300],
-                type="trend",
-                scheduled_for=None,
-                sent_at=datetime.utcnow(),  # in real system, set when FCM push actually sent
+                category="news", # assuming trends fall under news
+                priority="medium"
             )
-            db.add(notif)
-            created += 1
+            if res:
+                created += 1
 
     db.commit()
-    return {"message": f"Created {created} notifications"}
+    return {"message": f"Dispatched {created} notifications based on user preferences"}
 
 @router.get("/trends", response_model=List[TrendOut])
 def list_trends(

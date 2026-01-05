@@ -24,6 +24,7 @@ class Profile(Base):
     full_name = Column(Text, nullable=True)
     email = Column(Text, nullable=True)
     timezone = Column(Text, nullable=False, server_default="America/New_York")
+    is_admin = Column(Boolean, nullable=False, server_default="false")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -136,6 +137,13 @@ class NotificationPreference(Base):
     k401_alerts = Column(Boolean, nullable=False, server_default="true")
     deductible_alerts = Column(Boolean, nullable=False, server_default="true")
     trend_alerts = Column(Boolean, nullable=False, server_default="true")
+    
+    # New preference fields
+    news_frequency = Column(Text, nullable=False, server_default="daily") # daily|weekly|off
+    social_updates = Column(Text, nullable=False, server_default="yes") # yes|no|vimp-only
+    gov_notifications = Column(Boolean, nullable=False, server_default="true")
+    all_disabled = Column(Boolean, nullable=False, server_default="false")
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -151,7 +159,11 @@ class Notification(Base):
     )
     title = Column(Text, nullable=False)
     body = Column(Text, nullable=False)
-    type = Column(Text, nullable=True)
+    type = Column(Text, nullable=True) # deprecated if category is used
+    category = Column(Text, nullable=True) # news|social|gov|manual
+    priority = Column(Text, nullable=False, server_default="medium") # high|medium|low
+    is_cleared = Column(Integer, nullable=False, server_default="0") # 0=not cleared, 1=cleared
+    
     scheduled_for = Column(DateTime(timezone=True), nullable=True)
     sent_at = Column(DateTime(timezone=True), nullable=True)
     read_at = Column(DateTime(timezone=True), nullable=True)
