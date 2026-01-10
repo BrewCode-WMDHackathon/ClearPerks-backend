@@ -10,7 +10,7 @@ from app.schemas.schemas import TrendIn, TrendNotifyIn, TrendOut
 
 router = APIRouter()
 
-INTERNAL_API_KEY = os.getenv("INTERNAL_KESRA_API_KEY")
+INTERNAL_API_KEY = os.getenv("INTERNAL_OPS_API_KEY") or os.getenv("INTERNAL_KESRA_API_KEY")
 if not INTERNAL_API_KEY:
     INTERNAL_API_KEY = "changeme"
 
@@ -19,7 +19,7 @@ def verify_internal_api_key(x_api_key: str = Header(..., alias="X-API-Key")):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 @router.post(
-    "/internal/kestra/trends",
+    "/internal/ops/trends",
     dependencies=[Depends(verify_internal_api_key)],
 )
 def ingest_trends_from_kestra(
@@ -55,9 +55,10 @@ def ingest_trends_from_kestra(
     return {"created_trend_ids": created_ids}
 
 from app.services.notification_service import NotificationService
+from app.services.slm_classifier import SLMClassifier
 
 @router.post(
-    "/internal/kestra/trends/notify",
+    "/internal/ops/trends/notify",
     dependencies=[Depends(verify_internal_api_key)],
 )
 def trigger_trend_notifications(
@@ -83,13 +84,16 @@ def trigger_trend_notifications(
     created = 0
     for user in users:
         for trend in trends:
+            # Use SLM to classify
+            slm_res = SLMClassifier.classify_text(f"{trend.title}. {trend.summary}")
+            
             res = NotificationService.create_notification(
                 db, 
                 user.user_id, 
                 title=f"Benefits Trend: {trend.title}",
                 body=trend.summary[:300],
-                category="news", # assuming trends fall under news
-                priority="medium"
+                category=slm_res["category"],
+                priority=slm_res["priority"]
             )
             if res:
                 created += 1
