@@ -164,6 +164,11 @@ class Notification(Base):
     priority = Column(Text, nullable=False, server_default="medium") # high|medium|low
     is_cleared = Column(Integer, nullable=False, server_default="0") # 0=not cleared, 1=cleared
     
+    # Push notification tracking
+    push_sent = Column(Boolean, nullable=False, server_default="false")
+    push_error = Column(Text, nullable=True)
+    should_push = Column(Boolean, nullable=False, server_default="true")
+    
     scheduled_for = Column(DateTime(timezone=True), nullable=True)
     sent_at = Column(DateTime(timezone=True), nullable=True)
     read_at = Column(DateTime(timezone=True), nullable=True)
