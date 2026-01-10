@@ -21,6 +21,7 @@ def send_notification(
             db, payload.user_id, payload.title, payload.body, 
             payload.category, payload.priority, payload.scheduled_for
         )
+        
         if not notif:
             return {"message": "Notification suppressed by user preferences or user not found"}
         return {"message": "Notification sent to user", "id": str(notif.id)}
