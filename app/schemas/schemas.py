@@ -108,6 +108,8 @@ class NotificationOut(BaseSchema):
     sent_at: Optional[datetime]
     read_at: Optional[datetime]
     created_at: datetime
+    push_sent: Optional[bool] = False
+    push_error: Optional[str] = None
 
 
 class NotificationCreate(BaseSchema):
