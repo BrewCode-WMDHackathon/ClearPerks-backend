@@ -4,6 +4,8 @@ from fastapi import Header, HTTPException, status, Depends
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.models import Profile, NotificationPreference
+from app.schemas.schemas import BaseSchema
+
 class UserContext(BaseSchema):
     user_id: uuid.UUID
     email: Optional[str] = None
