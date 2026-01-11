@@ -1,0 +1,1196 @@
+{
+    "info": {
+        "_postman_id": "clearperks-notifications-collection",
+        "name": "ClearPerks Notification Workflow",
+        "description": "Complete notification workflow including device management, push notifications, trends, and internal operations.\n\n## Authentication Setup\n\nThis backend uses **header-based auth** (hackathon mode):\n\n### User Auth:\n- Use `X-User-Id` header with any valid UUID\n- Profile is auto-created if it doesn't exist\n\n### Admin Auth:\n- Same as user, but the profile must have `is_admin=true` in database\n- Run this SQL to make a user admin:\n  ```sql\n  UPDATE profiles SET is_admin = true WHERE user_id = 'your-uuid';\n  ```\n\n### Internal API:\n- Use `X-API-Key` or `X-Internal-Key` header\n- Default value is `changeme` (check INTERNAL_OPS_API_KEY in .env)\n\n## Variables\n1. `base_url` - Your backend URL (default: http://localhost:8000)\n2. `user_id` - Any valid UUID (e.g., generate with `python -c \"import uuid; print(uuid.uuid4())\"`)\n3. `admin_user_id` - UUID of a user with is_admin=true\n4. `internal_api_key` - Internal ops key (default: changeme)",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:8000",
+            "type": "string"
+        },
+        {
+            "key": "user_id",
+            "value": "550e8400-e29b-41d4-a716-446655440001",
+            "type": "string",
+            "description": "Any valid UUID - profile auto-created"
+        },
+        {
+            "key": "admin_user_id",
+            "value": "550e8400-e29b-41d4-a716-446655440000",
+            "type": "string",
+            "description": "UUID of admin user (must have is_admin=true in DB)"
+        },
+        {
+            "key": "internal_api_key",
+            "value": "changeme",
+            "type": "string",
+            "description": "Check INTERNAL_OPS_API_KEY in .env"
+        },
+        {
+            "key": "fcm_token",
+            "value": "test_fcm_token_12345",
+            "type": "string"
+        },
+        {
+            "key": "notification_id",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "trend_id",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "target_user_id",
+            "value": "550e8400-e29b-41d4-a716-446655440001",
+            "type": "string",
+            "description": "User to send notifications to"
+        }
+    ],
+    "item": [
+        {
+            "name": "0. Setup & Health Check",
+            "description": "Verify backend is running and create test users",
+            "item": [
+                {
+                    "name": "0.1 Health Check",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Backend is running', function() {",
+                                    "    pm.expect(pm.response.code).to.equal(200);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                ""
+                            ]
+                        },
+                        "description": "Verify the backend is running."
+                    }
+                },
+                {
+                    "name": "0.2 Create User Profile (Auto)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Profile created/retrieved', function() {",
+                                    "    pm.expect(pm.response.code).to.equal(200);",
+                                    "    var jsonData = pm.response.json();",
+                                    "    console.log('User ID:', pm.collectionVariables.get('user_id'));",
+                                    "    console.log('Profile:', JSON.stringify(jsonData));",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{user_id}}",
+                                "type": "text",
+                                "description": "User UUID - profile auto-created"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/me",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "me"
+                            ]
+                        },
+                        "description": "Creates user profile automatically if it doesn't exist. Use any valid UUID."
+                    }
+                },
+                {
+                    "name": "0.3 Create Admin Profile (Manual SQL)",
+                    "event": [
+                        {
+                            "listen": "prerequest",
+                            "script": {
+                                "exec": [
+                                    "console.log('=== ADMIN SETUP ===');",
+                                    "console.log('After running this request, execute this SQL in your database:');",
+                                    "console.log('');",
+                                    "console.log('UPDATE profiles SET is_admin = true WHERE user_id = \\'' + pm.collectionVariables.get('admin_user_id') + '\\';');",
+                                    "console.log('');"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        },
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Admin profile created', function() {",
+                                    "    pm.expect(pm.response.code).to.equal(200);",
+                                    "    console.log('Now run the SQL shown in Pre-request Script console to grant admin!');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{admin_user_id}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/me",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "me"
+                            ]
+                        },
+                        "description": "Creates admin profile. **IMPORTANT**: After running, execute SQL to set is_admin=true:\n\n```sql\nUPDATE profiles SET is_admin = true WHERE user_id = 'admin_user_id';\n```"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "1. Device Management",
+            "description": "Register and manage device tokens for push notifications",
+            "item": [
+                {
+                    "name": "1.1 Register Device Token",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Device registered successfully', function() {",
+                                    "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                                    "});",
+                                    "",
+                                    "pm.test('Response has device_id', function() {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.device_id) {",
+                                    "        pm.environment.set('device_id', jsonData.device_id);",
+                                    "    }",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{user_id}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"token\": \"{{fcm_token}}\",\n  \"platform\": \"android\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/devices/register",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "devices",
+                                "register"
+                            ]
+                        },
+                        "description": "Register a device token for push notifications.\n\n**Platform options:** `android`, `ios`, `web`"
+                    }
+                },
+                {
+                    "name": "1.2 List User Devices",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Status code is 200', function() {",
+                                    "    pm.expect(pm.response.code).to.equal(200);",
+                                    "});",
+                                    "",
+                                    "pm.test('Response is an array', function() {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.expect(jsonData).to.be.an('array');",
+                                    "    console.log('Registered devices:', JSON.stringify(jsonData));",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{user_id}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/devices",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "devices"
+                            ]
+                        },
+                        "description": "List all registered devices for the current user. Tokens are masked for security."
+                    }
+                },
+                {
+                    "name": "1.3 Unregister Device Token",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{user_id}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/devices/{{fcm_token}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "devices",
+                                "{{fcm_token}}"
+                            ]
+                        },
+                        "description": "Unregister a device token (use on logout)."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "2. Admin Notifications",
+            "description": "Send notifications as admin (triggers push notification)",
+            "item": [
+                {
+                    "name": "2.1 Send Notification to User (Push)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Notification sent', function() {",
+                                    "    pm.expect(pm.response.code).to.equal(200);",
+                                    "});",
+                                    "",
+                                    "pm.test('Response has notification details', function() {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    console.log('Response:', JSON.stringify(jsonData));",
+                                    "    if (jsonData.id) {",
+                                    "        pm.collectionVariables.set('notification_id', jsonData.id);",
+                                    "    }",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{admin_user_id}}",
+                                "type": "text",
+                                "description": "Must be admin user"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"user_id\": \"{{target_user_id}}\",\n  \"title\": \"Test Push Notification\",\n  \"body\": \"This notification will trigger a push to the user's device!\",\n  \"category\": \"manual\",\n  \"priority\": \"high\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/admin/notifications/send",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "notifications",
+                                "send"
+                            ]
+                        },
+                        "description": "Send a notification to a specific user. This will:\n1. Create notification in database\n2. Send push notification via FCM if user has registered device tokens\n3. Return `push_sent: true` if push was successful\n\n**Categories:** `manual`, `news`, `social`, `gov`, `fsa`, `pto`, `hsa`\n\n**Priorities:** `high`, `medium`, `low`\n\n*Note: High priority bypasses user preference filters*"
+                    }
+                },
+                {
+                    "name": "2.2 Broadcast Notification (All Users)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Broadcast sent', function() {",
+                                    "    pm.expect(pm.response.code).to.equal(200);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{admin_user_id}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"System Announcement\",\n  \"body\": \"This is a broadcast to all users!\",\n  \"category\": \"news\",\n  \"priority\": \"medium\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/admin/notifications/send",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "notifications",
+                                "send"
+                            ]
+                        },
+                        "description": "Broadcast notification to ALL users.\n\nOmit `user_id` to send to everyone.\n\nUses batch push for efficiency (up to 500 tokens per FCM call)."
+                    }
+                },
+                {
+                    "name": "2.3 Send Scheduled Notification",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{admin_user_id}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"user_id\": \"{{target_user_id}}\",\n  \"title\": \"FSA Deadline Reminder\",\n  \"body\": \"Your FSA funds expire in 7 days!\",\n  \"category\": \"fsa\",\n  \"priority\": \"high\",\n  \"scheduled_for\": \"2026-01-15T09:00:00Z\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/admin/notifications/send",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "notifications",
+                                "send"
+                            ]
+                        },
+                        "description": "Schedule a notification for later. Push will NOT be sent immediately - use a scheduler (e.g., Kestra) to trigger at scheduled time."
+                    }
+                },
+                {
+                    "name": "2.4 List All Notifications (Admin)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{admin_user_id}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/admin/notifications?limit=50",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "notifications"
+                            ],
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "50"
+                                }
+                            ]
+                        },
+                        "description": "List all notifications in the system (admin view)."
+                    }
+                },
+                {
+                    "name": "2.5 Delete Notification",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{admin_user_id}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/admin/notifications/{{notification_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "notifications",
+                                "{{notification_id}}"
+                            ]
+                        },
+                        "description": "Delete a specific notification by ID."
+                    }
+                },
+                {
+                    "name": "2.6 Cleanup/Clear Notifications",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{admin_user_id}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/admin/notifications/cleanup",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "notifications",
+                                "cleanup"
+                            ]
+                        },
+                        "description": "Clear (mark as cleared) old notifications."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "3. User Notifications",
+            "description": "User-facing notification endpoints",
+            "item": [
+                {
+                    "name": "3.1 Get My Notifications",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Status code is 200', function() {",
+                                    "    pm.expect(pm.response.code).to.equal(200);",
+                                    "});",
+                                    "",
+                                    "pm.test('Response is array', function() {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.expect(jsonData).to.be.an('array');",
+                                    "    console.log('Total notifications:', jsonData.length);",
+                                    "});",
+                                    "",
+                                    "pm.test('Save first notification ID', function() {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.length > 0) {",
+                                    "        pm.collectionVariables.set('notification_id', jsonData[0].id);",
+                                    "        console.log('First notification:', JSON.stringify(jsonData[0]));",
+                                    "    }",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{user_id}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/notifications",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "notifications"
+                            ]
+                        },
+                        "description": "Get all notifications for the current user (non-cleared only).\n\nResponse includes:\n- `push_sent`: Whether push was delivered\n- `push_error`: Any push delivery error\n- `read_at`: When notification was read"
+                    }
+                },
+                {
+                    "name": "3.2 Mark Notification as Read",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{user_id}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/notifications/{{notification_id}}/read",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "notifications",
+                                "{{notification_id}}",
+                                "read"
+                            ]
+                        },
+                        "description": "Mark a notification as read. Sets `read_at` timestamp."
+                    }
+                },
+                {
+                    "name": "3.3 Get Notification Preferences",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{user_id}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/notification-preferences",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "notification-preferences"
+                            ]
+                        },
+                        "description": "Get user's notification preferences."
+                    }
+                },
+                {
+                    "name": "3.4 Update Notification Preferences",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{user_id}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"fsa_alerts\": true,\n  \"pto_alerts\": true,\n  \"news_frequency\": \"daily\",\n  \"social_updates\": \"vimp-only\",\n  \"gov_notifications\": true,\n  \"all_disabled\": false\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/notification-preferences",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "notification-preferences"
+                            ]
+                        },
+                        "description": "Update notification preferences.\n\n**news_frequency:** `daily`, `weekly`, `off`\n**social_updates:** `yes`, `no`, `vimp-only`\n**all_disabled:** Disable ALL notifications"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "4. Trends",
+            "description": "Benefits trends and trend-based notifications",
+            "item": [
+                {
+                    "name": "4.1 List Trends",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Status code is 200', function() {",
+                                    "    pm.expect(pm.response.code).to.equal(200);",
+                                    "});",
+                                    "",
+                                    "pm.test('Save first trend ID', function() {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.length > 0) {",
+                                    "        pm.collectionVariables.set('trend_id', jsonData[0].id);",
+                                    "    }",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/trends?limit=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "trends"
+                            ],
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "List all benefit trends (public endpoint)."
+                    }
+                },
+                {
+                    "name": "4.2 Get Single Trend",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/trends/{{trend_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "trends",
+                                "{{trend_id}}"
+                            ]
+                        },
+                        "description": "Get details of a specific trend."
+                    }
+                },
+                {
+                    "name": "4.3 Ingest Trends (Internal)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-API-Key",
+                                "value": "{{internal_api_key}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "[\n  {\n    \"topic_id\": \"fsa-deadline-2026\",\n    \"title\": \"FSA Deadline Changes for 2026\",\n    \"summary\": \"New IRS guidelines allow extended FSA rollover periods for eligible employees.\",\n    \"category\": \"fsa\",\n    \"relevance_score\": 9,\n    \"items\": [\n      {\n        \"source\": \"IRS.gov\",\n        \"url\": \"https://irs.gov/fsa-updates\",\n        \"text_snippet\": \"The IRS has announced changes to FSA rollover limits...\"\n      }\n    ]\n  },\n  {\n    \"topic_id\": \"hsa-contribution-2026\",\n    \"title\": \"HSA Contribution Limits Increased\",\n    \"summary\": \"2026 HSA contribution limits have been raised to $4,300 for individuals and $8,550 for families.\",\n    \"category\": \"hsa\",\n    \"relevance_score\": 8,\n    \"items\": []\n  }\n]"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/internal/ops/trends",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "internal",
+                                "ops",
+                                "trends"
+                            ]
+                        },
+                        "description": "Ingest new trends from external sources (Kestra workflow).\n\nRequires internal API key."
+                    }
+                },
+                {
+                    "name": "4.4 Trigger Trend Notifications",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-API-Key",
+                                "value": "{{internal_api_key}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"trend_ids\": null\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/internal/ops/trends/notify",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "internal",
+                                "ops",
+                                "trends",
+                                "notify"
+                            ]
+                        },
+                        "description": "Trigger notifications for trends.\n\n- `trend_ids: null` - Notify for all high-scoring trends (score >= 8)\n- `trend_ids: [\"uuid1\", \"uuid2\"]` - Notify for specific trends\n\nUses SLM to classify notifications and applies user preferences."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "5. Internal Operations",
+            "description": "Internal operations for scheduled jobs",
+            "item": [
+                {
+                    "name": "5.1 FSA Deadline Audit",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Internal-Key",
+                                "value": "{{internal_api_key}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/ops/fsa-audit",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "ops",
+                                "fsa-audit"
+                            ]
+                        },
+                        "description": "Get users with FSA balances expiring within 60 days.\n\nUseful for triggering reminder notifications."
+                    }
+                },
+                {
+                    "name": "5.2 Aggregate Trends Data",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Internal-Key",
+                                "value": "{{internal_api_key}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"period\": \"weekly\",\n  \"metrics\": [\"fsa_usage\", \"pto_balance\", \"hsa_contributions\"]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/ops/aggregate",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "ops",
+                                "aggregate"
+                            ]
+                        },
+                        "description": "Aggregate benefits usage data for analysis."
+                    }
+                },
+                {
+                    "name": "5.3 Generate Insights",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Internal-Key",
+                                "value": "{{internal_api_key}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"aggregation_id\": \"agg_20260110_120000\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/ops/insights",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "ops",
+                                "insights"
+                            ]
+                        },
+                        "description": "Generate insights from aggregated data."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "6. User Profile",
+            "description": "User profile management",
+            "item": [
+                {
+                    "name": "6.1 Get My Profile",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{user_id}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/me",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "me"
+                            ]
+                        },
+                        "description": "Get current user's profile and notification preferences."
+                    }
+                },
+                {
+                    "name": "6.2 Update My Profile",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{user_id}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"full_name\": \"John Doe\",\n  \"timezone\": \"America/New_York\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/me",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "me"
+                            ]
+                        },
+                        "description": "Update current user's profile."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "7. Complete Push Flow Test",
+            "description": "Full end-to-end test of push notification flow. Run in order!",
+            "item": [
+                {
+                    "name": "Step 1: Create User Profile",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('User profile ready', function() {",
+                                    "    pm.expect(pm.response.code).to.equal(200);",
+                                    "    console.log('User profile created/retrieved');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{target_user_id}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/me",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "me"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Step 2: Register Device Token",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Device registered', function() {",
+                                    "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                                    "    console.log('Device registered successfully');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{target_user_id}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"token\": \"test_push_token_{{$timestamp}}\",\n  \"platform\": \"android\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/devices/register",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "devices",
+                                "register"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Step 3: Send Push Notification (Admin)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Notification created', function() {",
+                                    "    pm.expect(pm.response.code).to.equal(200);",
+                                    "});",
+                                    "",
+                                    "pm.test('Check response', function() {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    console.log('Response:', JSON.stringify(jsonData));",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{admin_user_id}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"user_id\": \"{{target_user_id}}\",\n  \"title\": \"Push Test Notification\",\n  \"body\": \"Testing push notification flow at {{$timestamp}}\",\n  \"category\": \"manual\",\n  \"priority\": \"high\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/admin/notifications/send",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "notifications",
+                                "send"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Step 4: Verify Notification Created",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Notifications retrieved', function() {",
+                                    "    pm.expect(pm.response.code).to.equal(200);",
+                                    "});",
+                                    "",
+                                    "pm.test('Has notifications', function() {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.expect(jsonData.length).to.be.greaterThan(0);",
+                                    "    console.log('Total notifications:', jsonData.length);",
+                                    "    console.log('Latest:', JSON.stringify(jsonData[0]));",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-User-Id",
+                                "value": "{{target_user_id}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/notifications",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "notifications"
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}
