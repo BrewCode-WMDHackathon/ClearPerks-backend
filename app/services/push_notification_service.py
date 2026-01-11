@@ -256,8 +256,8 @@ class PushNotificationService:
                 tokens=tokens
             )
             
-            # Send message
-            response = messaging.send_multicast(multicast_message)
+            # Send message using new API (send_each_for_multicast replaces deprecated send_multicast)
+            response = messaging.send_each_for_multicast(multicast_message)
             
             # Collect invalid tokens
             invalid_tokens = []
@@ -277,6 +277,7 @@ class PushNotificationService:
                     })
             
             logger.info(f"Multicast push: {response.success_count} success, {response.failure_count} failed")
+
             
             return {
                 "success_count": response.success_count,
