@@ -10,6 +10,9 @@ from app.api.endpoints.trends import verify_internal_api_key # Reuse generic aut
 # Actually trends doesn't import this. But to be clean, let's redefine generic auth here or use a common one.
 # For now, I'll redefine it to decouple.
 
+from app.services.news_notification_service import NewsNotificationService
+from app.services.ai_service import AINotificationService
+
 router = APIRouter()
 
 INTERNAL_API_KEY = os.getenv("INTERNAL_OPS_API_KEY") or os.getenv("INTERNAL_KESRA_API_KEY") or "changeme"
@@ -106,3 +109,30 @@ def generate_insights(
         ],
         "created_at": datetime.utcnow().isoformat()
     }
+
+@router.post("/trigger-news-notifications")
+def trigger_news_notifications(
+    lookback_hours: int = 24,
+    _: bool = Depends(verify_ops_key),
+    db: Session = Depends(get_db),
+):
+    """
+    Triggers the system to fetch top 10 news (past lookback_hours) for each category,
+    generate AI summaries/notifications, and dispatch them.
+    Default lookback is 24h.
+    """
+    try:
+        # Instantiate services
+        ai_service = AINotificationService()
+        news_service = NewsNotificationService(db, ai_service)
+        
+        results = news_service.process_daily_news_notifications(lookback_hours=lookback_hours)
+        
+        return {
+            "status": "success",
+            "message": "News notifications processed",
+            "timestamp": datetime.utcnow().isoformat(),
+            "results": results
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
