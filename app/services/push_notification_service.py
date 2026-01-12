@@ -10,6 +10,7 @@ This service handles all push notification operations including:
 """
 
 import os
+import json
 import logging
 from typing import List, Dict, Optional
 import uuid
@@ -37,6 +38,11 @@ class PushNotificationService:
     def initialize_fcm(cls) -> bool:
         """
         Initialize Firebase Cloud Messaging client.
+        
+        Supports two methods for credentials:
+        1. FIREBASE_CREDENTIALS_JSON env var (JSON string) - for HuggingFace/cloud
+        2. FIREBASE_CREDENTIALS_PATH env var (file path) - for local development
+        
         Returns True if successful, False otherwise.
         """
         if cls._initialized:
@@ -53,15 +59,31 @@ class PushNotificationService:
             return False
         
         try:
-            # Get credentials path from environment
-            cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH", "./firebase-credentials.json")
+            cred = None
             
-            if not os.path.exists(cred_path):
-                logger.error(f"Firebase credentials file not found at {cred_path}")
-                return False
+            # Method 1: Try FIREBASE_CREDENTIALS_JSON env var (for HuggingFace Secrets)
+            cred_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
+            if cred_json:
+                try:
+                    cred_dict = json.loads(cred_json)
+                    cred = credentials.Certificate(cred_dict)
+                    logger.info("Using Firebase credentials from FIREBASE_CREDENTIALS_JSON env var")
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid JSON in FIREBASE_CREDENTIALS_JSON: {e}")
+                    return False
+            
+            # Method 2: Try FIREBASE_CREDENTIALS_PATH file (for local development)
+            if cred is None:
+                cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH", "./firebase-credentials.json")
+                
+                if os.path.exists(cred_path):
+                    cred = credentials.Certificate(cred_path)
+                    logger.info(f"Using Firebase credentials from file: {cred_path}")
+                else:
+                    logger.error(f"Firebase credentials not found. Set FIREBASE_CREDENTIALS_JSON or FIREBASE_CREDENTIALS_PATH")
+                    return False
             
             # Initialize Firebase Admin SDK
-            cred = credentials.Certificate(cred_path)
             cls._fcm_app = firebase_admin.initialize_app(cred)
             cls._initialized = True
             
@@ -234,8 +256,8 @@ class PushNotificationService:
                 tokens=tokens
             )
             
-            # Send message
-            response = messaging.send_multicast(multicast_message)
+            # Send message using new API (send_each_for_multicast replaces deprecated send_multicast)
+            response = messaging.send_each_for_multicast(multicast_message)
             
             # Collect invalid tokens
             invalid_tokens = []
@@ -255,6 +277,7 @@ class PushNotificationService:
                     })
             
             logger.info(f"Multicast push: {response.success_count} success, {response.failure_count} failed")
+
             
             return {
                 "success_count": response.success_count,

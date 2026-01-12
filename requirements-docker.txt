@@ -13,3 +13,4 @@ paddleocr
 opencv-python-headless
 pymupdf
 openai
+firebase-admin
