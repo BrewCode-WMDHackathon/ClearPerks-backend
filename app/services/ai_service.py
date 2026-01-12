@@ -6,12 +6,13 @@ from typing import Optional, Dict
 class AINotificationService:
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        self.base_url = os.getenv("OPENAI_BASE_URL")
         if not self.api_key:
             # For boilerplate purposes, we don't crash init, but methods will fail or mock.
             print("Warning: OPENAI_API_KEY not found.")
             self.client = None
         else:
-            self.client = OpenAI(api_key=self.api_key)
+            self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
 
     def generate_notification_content(self, context: str) -> Dict[str, str]:
         """
@@ -22,7 +23,10 @@ class AINotificationService:
 
         prompt = f"""
         You are a helpful assistant for a benefits platform. 
-        Generate a concise notification 'title' and 'body' for the following context:
+        Analyze the following news items and generate a SINGLE notification 'title' and 'body' that summarizes the key updates for this category.
+        Do NOT return a list. Return ONLY one JSON object.
+
+        News Items:
         "{context}"
         
         Return the result as valid JSON with keys: "title", "body".
@@ -30,14 +34,23 @@ class AINotificationService:
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="llama-3.1-8b-instruct",
                 messages=[{"role": "user", "content": prompt}],
-                response_format={"type": "json_object"}
             )
             content = response.choices[0].message.content
+            
+            # Handle potential markdown fencing
+            content = content.replace("```json", "").replace("```", "").strip()
+            
+            # Extract only the first JSON object if extra text exists
+            start = content.find("{")
+            end = content.rfind("}")
+            if start != -1 and end != -1:
+                content = content[start:end+1]
+                
             return json.loads(content)
         except Exception as e:
-            print(f"AI Generation Error: {e}")
+            print(f"AI Generation Error: {e} | Content: {content if 'content' in locals() else 'None'}")
             return {"title": "Error generating title", "body": "Error generating body"}
 
     def classify_notification(self, title: str, body: str) -> Dict[str, str]:

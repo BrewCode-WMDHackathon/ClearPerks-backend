@@ -222,3 +222,18 @@ class BenefitTrendItem(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     trend = relationship("BenefitTrend", back_populates="items")
+
+
+class NewsArticle(Base):
+    __tablename__ = "news_articles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(Text, nullable=False)
+    url = Column(Text, nullable=False)
+    published_at = Column(DateTime(timezone=True), nullable=True)
+    iso_date = Column(DateTime(timezone=True), nullable=True)
+    content = Column(Text, nullable=True)
+    summary = Column(Text, nullable=True)
+    category = Column(Text, nullable=True)
+    raw_id = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
