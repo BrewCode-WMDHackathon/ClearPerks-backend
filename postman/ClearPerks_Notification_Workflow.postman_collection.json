@@ -49,6 +49,12 @@
             "value": "550e8400-e29b-41d4-a716-446655440001",
             "type": "string",
             "description": "User to send notifications to"
+        },
+        {
+            "key": "article_id",
+            "value": "",
+            "type": "string",
+            "description": "News article ID for single article lookup"
         }
     ],
     "item": [
@@ -1188,6 +1194,142 @@
                                 "notifications"
                             ]
                         }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "8. News Articles",
+            "description": "News articles with domain-driven filters for benefits-related content",
+            "item": [
+                {
+                    "name": "8.1 List News Articles",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Status code is 200', function() {",
+                                    "    pm.expect(pm.response.code).to.equal(200);",
+                                    "});",
+                                    "",
+                                    "pm.test('Response is array', function() {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.expect(jsonData).to.be.an('array');",
+                                    "    console.log('Total articles:', jsonData.length);",
+                                    "    if (jsonData.length > 0) {",
+                                    "        pm.collectionVariables.set('article_id', jsonData[0].id);",
+                                    "        console.log('First article:', JSON.stringify(jsonData[0]));",
+                                    "    }",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/news?limit=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "news"
+                            ],
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                },
+                                {
+                                    "key": "ui_category",
+                                    "value": "Health",
+                                    "disabled": true,
+                                    "description": "Filter: Pay, Health, Retirement, Time Off"
+                                },
+                                {
+                                    "key": "has_deadline",
+                                    "value": "true",
+                                    "disabled": true,
+                                    "description": "Filter articles with deadline signals"
+                                },
+                                {
+                                    "key": "saves_money",
+                                    "value": "true",
+                                    "disabled": true,
+                                    "description": "Filter articles about saving money"
+                                },
+                                {
+                                    "key": "domain_tag",
+                                    "value": "HSA",
+                                    "disabled": true,
+                                    "description": "Filter by domain: HSA, FSA, 401K, PTO, TAX, PAYROLL"
+                                },
+                                {
+                                    "key": "sort_by",
+                                    "value": "relevance_score",
+                                    "disabled": true,
+                                    "description": "Sort: relevance_score, published_at, created_at"
+                                }
+                            ]
+                        },
+                        "description": "Get news articles with optional filters.\n\n**UI Categories:**\n- Pay (PAYROLL, TAX)\n- Health (HSA, FSA, INSURANCE)\n- Retirement (401K)\n- Time Off (PTO)\n\n**Filters:**\n- `ui_category`: Filter by derived category\n- `has_deadline`: Articles with deadline signals\n- `saves_money`: Articles about saving money\n- `domain_tag`: Direct tag filter (HSA, FSA, 401K, PTO, TAX)"
+                    }
+                },
+                {
+                    "name": "8.2 Get Single News Article",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/news/{{article_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "news",
+                                "{{article_id}}"
+                            ]
+                        },
+                        "description": "Get a single news article by ID with derived fields (ui_category, urgency_level)."
+                    }
+                },
+                {
+                    "name": "8.3 Get Deadline News",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/news/deadlines?limit=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "news",
+                                "deadlines"
+                            ],
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                },
+                                {
+                                    "key": "days_ahead",
+                                    "value": "30",
+                                    "disabled": true,
+                                    "description": "Days to look ahead (1-365)"
+                                }
+                            ]
+                        },
+                        "description": "Convenience endpoint for the 'Deadlines' tab.\n\nReturns articles with has_deadline signal, sorted by urgency."
                     }
                 }
             ]
