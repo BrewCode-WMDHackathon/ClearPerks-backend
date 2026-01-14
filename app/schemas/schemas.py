@@ -86,9 +86,18 @@ class RecommendationOut(BaseSchema):
     title: str
     description: str
     estimated_savings: Optional[float]
-    category: Optional[str]
+    category: Optional[str] = None  # DEPRECATED: use ui_category
     priority: Optional[str]
     created_at: datetime
+    
+    # Domain-driven fields
+    domain_tags: List[str] = []
+    signals: dict = {}
+    relevance_score: float = 0
+    
+    # Derived fields (computed at runtime)
+    ui_category: Optional[str] = None
+    urgency_level: Optional[str] = None
 
 
 class DeviceTokenIn(BaseSchema):
@@ -100,8 +109,8 @@ class NotificationOut(BaseSchema):
     id: uuid.UUID
     title: str
     body: str
-    type: Optional[str]
-    category: Optional[str]
+    type: Optional[str] = None  # DEPRECATED
+    category: Optional[str] = None  # DEPRECATED: use ui_category
     priority: str
     is_cleared: int
     scheduled_for: Optional[datetime]
@@ -110,15 +119,31 @@ class NotificationOut(BaseSchema):
     created_at: datetime
     push_sent: Optional[bool] = False
     push_error: Optional[str] = None
+    
+    # Domain-driven fields
+    domain_tags: List[str] = []
+    signals: dict = {}
+    relevance_score: float = 0
+    deadline_date: Optional[datetime] = None
+    
+    # Derived fields (computed at runtime)
+    ui_category: Optional[str] = None
+    urgency_level: Optional[str] = None
+    is_deadline: Optional[bool] = None
 
 
 class NotificationCreate(BaseSchema):
     user_id: Optional[uuid.UUID] = None  # if None, send to all (or filtered)
     title: str
     body: str
-    category: str = "manual"
+    category: str = "manual"  # DEPRECATED: kept for backward compatibility
     priority: str = "medium"
     scheduled_for: Optional[datetime] = None
+    
+    # New domain-driven fields
+    domain_tags: List[str] = []
+    signals: dict = {}
+    deadline_date: Optional[datetime] = None
 
 
 class TrendItemIn(BaseSchema):
@@ -132,9 +157,13 @@ class TrendIn(BaseSchema):
     topic_id: Optional[str] = None
     title: str
     summary: str
-    category: Optional[str] = None
-    relevance_score: Optional[int] = None
+    category: Optional[str] = None  # DEPRECATED
+    relevance_score: Optional[float] = None
     items: List[TrendItemIn] = Field(default_factory=list)
+    
+    # New domain-driven fields
+    domain_tags: List[str] = []
+    signals: dict = {}
 
 
 class TrendNotifyIn(BaseSchema):
@@ -154,7 +183,27 @@ class TrendOut(BaseSchema):
     topic_id: Optional[str]
     title: str
     summary: str
-    category: Optional[str]
-    relevance_score: Optional[int]
+    category: Optional[str] = None  # DEPRECATED: use ui_category
+    relevance_score: float = 0
     created_at: datetime
     items: List[TrendItemOut]
+    
+    # Domain-driven fields
+    domain_tags: List[str] = []
+    signals: dict = {}
+    
+    # Derived fields (computed at runtime)
+    ui_category: Optional[str] = None
+    urgency_level: Optional[str] = None
+
+
+# Filter query schema for content APIs
+class ContentFilterParams(BaseSchema):
+    """Filter parameters for content queries."""
+    ui_category: Optional[str] = None  # "Pay", "Health", "Retirement", "Time Off"
+    has_deadline: Optional[bool] = None
+    saves_money: Optional[bool] = None
+    urgency: Optional[str] = None  # "high", "medium", "normal"
+    sort_by: str = "relevance_score"
+    sort_order: str = "desc"
+    limit: int = 50

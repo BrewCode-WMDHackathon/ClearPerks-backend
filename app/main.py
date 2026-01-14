@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core.database import engine, Base
-from app.api.endpoints import users, paystubs, benefits, trends, internal_ops, notifications_admin, devices
+from app.api.endpoints import users, paystubs, benefits, trends, internal_ops, notifications_admin, devices, news
 
 # Create tables (for local dev; skip if using Supabase migrations)
 Base.metadata.create_all(bind=engine)
@@ -48,6 +48,7 @@ app.include_router(trends.router, prefix=f"{API_PREFIX}", tags=["Trends"])
 app.include_router(internal_ops.router, prefix=f"{API_PREFIX}/ops", tags=["Internal Ops"])
 app.include_router(notifications_admin.router, prefix=f"{API_PREFIX}", tags=["Admin Notifications"])
 app.include_router(devices.router, prefix=f"{API_PREFIX}", tags=["Devices"])
+app.include_router(news.router, prefix=f"{API_PREFIX}", tags=["News"])
 
 @app.get("/", include_in_schema=False)
 def root():

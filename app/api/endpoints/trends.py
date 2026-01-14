@@ -26,15 +26,54 @@ def ingest_trends_from_kestra(
     payload: List[TrendIn],
     db: Session = Depends(get_db),
 ):
+    """
+    Ingest trends from Kestra/n8n workflows.
+    
+    Now populates domain_tags and signals using SLMClassifier,
+    and computes composite relevance scores.
+    """
+    from app.services.slm_classifier import SLMClassifier
+    from app.services.category_service import CategoryService
+    
     created_ids = []
 
     for t in payload:
+        # Classify text to extract domain tags and signals
+        classification = SLMClassifier.classify_text(f"{t.title}. {t.summary}")
+        
+        # Compute relevance components
+        relevance_components = SLMClassifier.compute_relevance_components(
+            t.summary, 
+            classification['signals']
+        )
+        
+        # Compute freshness (brand new)
+        freshness_score = 10.0
+        
+        # Compute total relevance
+        relevance_score = CategoryService.compute_relevance_score(
+            freshness_score=freshness_score,
+            urgency_score=relevance_components['urgency_score'],
+            money_score=relevance_components['money_score'],
+            confidence_score=relevance_components['confidence_score'],
+        )
+        
+        # Use provided domain_tags if available, else use classified ones
+        domain_tags = t.domain_tags if t.domain_tags else classification['domain_tags']
+        signals = t.signals if t.signals else classification['signals']
+        
         trend = BenefitTrend(
             topic_id=t.topic_id,
             title=t.title,
             summary=t.summary,
-            category=t.category,
-            relevance_score=t.relevance_score,
+            category=t.category,  # Keep for backward compatibility
+            domain_tags=domain_tags,
+            signals=signals,
+            freshness_score=freshness_score,
+            urgency_score=relevance_components['urgency_score'],
+            money_score=relevance_components['money_score'],
+            confidence_score=relevance_components['confidence_score'],
+            relevance_score=relevance_score,
         )
         db.add(trend)
         db.flush()  # get trend.id

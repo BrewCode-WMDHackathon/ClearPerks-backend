@@ -115,8 +115,14 @@ class Recommendation(Base):
     title = Column(Text, nullable=False)
     description = Column(Text, nullable=False)
     estimated_savings = Column(Numeric, nullable=True)
-    category = Column(Text, nullable=True)
+    category = Column(Text, nullable=True)  # DEPRECATED: kept for backward compatibility
     priority = Column(Text, nullable=True)
+    
+    # Domain-driven fields (new architecture)
+    domain_tags = Column(JSON, default=list)  # e.g., ["HSA", "FSA"]
+    signals = Column(JSON, default=dict)  # e.g., {"has_deadline": true}
+    relevance_score = Column(Numeric, default=0)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("Profile", back_populates="recommendations")
@@ -159,10 +165,16 @@ class Notification(Base):
     )
     title = Column(Text, nullable=False)
     body = Column(Text, nullable=False)
-    type = Column(Text, nullable=True) # deprecated if category is used
-    category = Column(Text, nullable=True) # news|social|gov|manual
-    priority = Column(Text, nullable=False, server_default="medium") # high|medium|low
-    is_cleared = Column(Integer, nullable=False, server_default="0") # 0=not cleared, 1=cleared
+    type = Column(Text, nullable=True)  # DEPRECATED
+    category = Column(Text, nullable=True)  # DEPRECATED: kept for backward compatibility
+    priority = Column(Text, nullable=False, server_default="medium")  # high|medium|low
+    is_cleared = Column(Integer, nullable=False, server_default="0")  # 0=not cleared, 1=cleared
+    
+    # Domain-driven fields (new architecture)
+    domain_tags = Column(JSON, default=list)  # e.g., ["HSA", "TAX"]
+    signals = Column(JSON, default=dict)  # e.g., {"has_deadline": true, "saves_money": true}
+    relevance_score = Column(Numeric, default=0)
+    deadline_date = Column(Date, nullable=True)  # Explicit deadline for Deadlines tab
     
     # Push notification tracking
     push_sent = Column(Boolean, nullable=False, server_default="false")
@@ -199,8 +211,19 @@ class BenefitTrend(Base):
     topic_id = Column(Text, nullable=True)
     title = Column(Text, nullable=False)
     summary = Column(Text, nullable=False)
-    category = Column(Text, nullable=True)
-    relevance_score = Column(Integer, nullable=True)
+    category = Column(Text, nullable=True)  # DEPRECATED: kept for backward compatibility
+    
+    # Domain-driven fields (new architecture)
+    domain_tags = Column(JSON, default=list)  # e.g., ["HSA", "401K"]
+    signals = Column(JSON, default=dict)  # e.g., {"policy_change": true}
+    
+    # Composite relevance scores
+    freshness_score = Column(Numeric, default=0)
+    urgency_score = Column(Numeric, default=0)
+    money_score = Column(Numeric, default=0)
+    confidence_score = Column(Numeric, default=0)
+    relevance_score = Column(Numeric, default=0)  # Composite total
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     items = relationship(
@@ -234,6 +257,12 @@ class NewsArticle(Base):
     iso_date = Column(DateTime(timezone=True), nullable=True)
     content = Column(Text, nullable=True)
     summary = Column(Text, nullable=True)
-    category = Column(Text, nullable=True)
+    category = Column(Text, nullable=True)  # DEPRECATED: kept for backward compatibility
     raw_id = Column(Text, nullable=True)
+    
+    # Domain-driven fields (new architecture)
+    domain_tags = Column(JSON, default=list)  # e.g., ["TAX", "401K"]
+    signals = Column(JSON, default=dict)  # e.g., {"policy_change": true}
+    relevance_score = Column(Numeric, default=0)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())

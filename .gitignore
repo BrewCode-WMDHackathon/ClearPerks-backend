@@ -7,3 +7,6 @@ FRONTEND_INTEGRATION.md
 KESTRA_INTEGRATION.md
 k8s/*
 firebase-credentials.json
+docs/NEWS_API_FILTERS.md
+.gitignore
+migrations/002_add_domain_tags_signals.sql
